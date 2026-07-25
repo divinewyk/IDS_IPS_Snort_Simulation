@@ -115,17 +115,49 @@ Cleanup afterward:
 
 ---
 
-## 6. MANUAL run (optional — only if you want to show the moving parts)
+## 6. MANUAL run — recommended if your audience needs visible proof it's real
 
-Four SSH windows, each in `~/Network_IDS_IPS_Package`:
+`run_demo.sh` is genuinely live (real `nmap`/`hping3`/`ping`/`curl`, real Snort,
+real alerts), but because it's one self-narrating script in one terminal, a
+non-technical audience has no way to tell that apart from a scripted playback.
+If you got feedback like "how do we know that was a real attack?", run it this
+way instead — same scripts, same rules, **zero code changes**, just spread
+across more visible windows so people watch independent machines react in
+real time.
 
-- Terminal 1: `sudo bash scripts/01_build_lab_topology.sh`
-- Terminal 2: `sudo bash scripts/02_start_victim_server.sh`   (leave running)
-- Terminal 3: `sudo bash scripts/03_run_ids_mode.sh`          (alerts appear here)
-- Terminal 4: `sudo bash scripts/attack_demo.sh scan`         (then icmp, sqli, eicar)
+Five SSH windows, each in `~/Network_IDS_IPS_Package` (arrange them tiled on
+screen, e.g. with `tmux` or your terminal app's split-pane layout, so all five
+are visible at once):
 
-Then Ctrl+C in Terminal 3, `sudo bash scripts/04_run_ips_mode.sh`, and re-run the
-attacks to show them blocked.
+- Terminal 1 — **attacker**: `sudo bash scripts/01_build_lab_topology.sh`, then
+  `sudo ip netns exec ns-attacker bash`. Type each attack command yourself, live
+  (don't paste a script) — e.g. `nmap -sS -Pn 10.0.0.2`, `hping3 -S -p 80 --flood 10.0.0.2`,
+  `curl "http://10.0.0.2/login?user=admin' OR '1'='1"`. Typing it live, in front
+  of people, is the single strongest signal that nothing is pre-recorded.
+- Terminal 2 — **victim**: `sudo bash scripts/02_start_victim_server.sh` (leave
+  running). Optionally run `watch -n0.2 'ss -ltn'` alongside so the audience
+  sees the target's own state changing independently of the attacker.
+- Terminal 3 — **Snort console**: `sudo bash scripts/03_run_ids_mode.sh`. Leave
+  raw, unfiltered alerts scrolling here — don't pre-filter them. Ctrl+C and
+  `sudo bash scripts/04_run_ips_mode.sh` to switch to blocking mode.
+- Terminal 4 — **wire tap (the proof)**: `sudo ip netns exec ns-ids tcpdump -i veth-ida -n`.
+  This shows the actual packets crossing the bridge in real time — visibly
+  bursting during the flood, visibly stopping once IPS mode drops them. This is
+  the terminal that most convincingly rules out "fake output," since tcpdump is
+  an independent, well-known tool showing raw packets, not your own script.
+- Terminal 5 — **sanity checks**: before and after each attack, run `date` and
+  a plain `ping -c1 10.0.0.2` from the attacker namespace. Real timestamps and a
+  live pass/fail response are hard to mistake for canned output.
+
+Suggested flow per attack: (1) show `date`, (2) type the attack command live in
+Terminal 1, (3) point at Terminal 4 (tcpdump) as packets appear, (4) point at
+Terminal 3 as the Snort alert fires, (5) show the victim's reaction in
+Terminal 2. Repeat in IPS mode and note that Terminal 4 still shows the attack
+packets, but Terminal 2 no longer reacts — proof the drop happened on the wire,
+not in the display.
+
+This takes longer than the one-command demo (budget ~12–13 min instead of 8),
+so trim to 2 attacks (e.g. SQL injection + ICMP flood) if you're time-boxed.
 
 ---
 
