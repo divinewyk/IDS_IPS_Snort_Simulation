@@ -1,0 +1,31 @@
+# =====================================================================
+# local_ips.rules  —  PREVENTION (IPS) ruleset, action = drop.
+#
+# Identical match logic and SIDs to local_ids.rules, but action=drop.
+# Snort only enforces drop when running inline (-Q, afpacket bridge).
+# Loads on BOTH Snort 3 and Snort 2.9. Single-line rules (paste-safe).
+# =====================================================================
+
+drop tcp any any -> $HOME_NET any ( msg:"RECON Nmap SYN scan detected - BLOCKED"; flags:S; detection_filter:track by_src, count 20, seconds 10; classtype:attempted-recon; sid:1000001; rev:2; )
+
+drop tcp any any -> $HOME_NET any ( msg:"RECON Nmap TCP connect scan detected - BLOCKED"; flags:S; detection_filter:track by_src, count 20, seconds 10; classtype:attempted-recon; sid:1000002; rev:2; )
+
+drop icmp any any -> $HOME_NET any ( msg:"RECON ICMP ping sweep detected - BLOCKED"; itype:8; detection_filter:track by_src, count 5, seconds 5; classtype:attempted-recon; sid:1000003; rev:2; )
+
+drop icmp any any -> $HOME_NET any ( msg:"DOS ICMP flood detected - BLOCKED"; itype:8; detection_filter:track by_src, count 100, seconds 5; classtype:attempted-dos; sid:1000010; rev:2; )
+
+drop tcp any any -> $HOME_NET any ( msg:"DOS TCP SYN flood detected - BLOCKED"; flags:S; detection_filter:track by_src, count 200, seconds 5; classtype:attempted-dos; sid:1000011; rev:2; )
+
+drop tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK SQL injection attempt (OR 1=1) - BLOCKED"; flow:to_server,established; content:"' OR '1'='1"; classtype:web-application-attack; sid:1000020; rev:2; )
+
+drop tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK SQL injection attempt (UNION SELECT) - BLOCKED"; flow:to_server,established; content:"UNION SELECT"; classtype:web-application-attack; sid:1000021; rev:2; )
+
+drop tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK XSS probe (script tag) - BLOCKED"; flow:to_server,established; content:"<script>"; classtype:web-application-attack; sid:1000022; rev:2; )
+
+drop tcp any any -> $HOME_NET any ( msg:"MALWARE EICAR test signature detected - BLOCKED"; content:"EICAR-STANDARD-ANTIVIRUS-TEST-FILE"; classtype:trojan-activity; sid:1000030; rev:2; )
+
+drop tcp any any -> $HOME_NET 22 ( msg:"BRUTE-FORCE Repeated SSH connection attempts - BLOCKED"; flags:S; detection_filter:track by_src, count 10, seconds 20; classtype:attempted-recon; sid:1000040; rev:2; )
+
+drop tcp any any -> $HOME_NET 80 ( msg:"QUICKBITE Credential stuffing login attempt detected - BLOCKED"; flow:to_server,established; content:"password=quickbite-demo-guess"; classtype:attempted-user; sid:1000050; rev:2; )
+
+drop tcp any any -> $HOME_NET 80 ( msg:"QUICKBITE Order-total tampering attempt detected - BLOCKED"; flow:to_server,established; content:"total=0.01"; classtype:bad-unknown; sid:1000051; rev:1; )

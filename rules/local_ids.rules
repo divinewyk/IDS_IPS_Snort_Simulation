@@ -1,0 +1,50 @@
+# =====================================================================
+# local_ids.rules  —  DETECTION (IDS) ruleset, action = alert only.
+#
+# Loads cleanly on BOTH Snort 3 (source build) and Snort 2.9 (apt):
+#   - Uses detection_filter (Snort 2's "threshold" keyword was removed
+#     in Snort 3).
+#   - No standalone "nocase" (Snort 3 requires it attached to content);
+#     content matches are exact-case, which is fine because the demo
+#     attack generator sends exact-case payloads.
+# Each rule is a single line (no backslash continuations) so it is safe
+# to paste directly into a terminal.
+#
+# SID range reserved for this project: 1000001 - 1000099
+# =====================================================================
+
+# 1. RECON — Nmap SYN scan: 20+ SYNs from one source in 10s
+alert tcp any any -> $HOME_NET any ( msg:"RECON Nmap SYN scan detected"; flags:S; detection_filter:track by_src, count 20, seconds 10; classtype:attempted-recon; sid:1000001; rev:2; )
+
+# 2. RECON — Nmap full connect scan (-sT), many ports
+alert tcp any any -> $HOME_NET any ( msg:"RECON Nmap TCP connect scan detected"; flags:S; detection_filter:track by_src, count 20, seconds 10; classtype:attempted-recon; sid:1000002; rev:2; )
+
+# 3. RECON — ICMP ping sweep / host discovery
+alert icmp any any -> $HOME_NET any ( msg:"RECON ICMP ping sweep detected"; itype:8; detection_filter:track by_src, count 5, seconds 5; classtype:attempted-recon; sid:1000003; rev:2; )
+
+# 4. DOS — ICMP flood: 100+ echo requests from one source in 5s
+alert icmp any any -> $HOME_NET any ( msg:"DOS ICMP flood detected"; itype:8; detection_filter:track by_src, count 100, seconds 5; classtype:attempted-dos; sid:1000010; rev:2; )
+
+# 5. DOS — TCP SYN flood: 200+ SYN packets from one source in 5s
+alert tcp any any -> $HOME_NET any ( msg:"DOS TCP SYN flood detected"; flags:S; detection_filter:track by_src, count 200, seconds 5; classtype:attempted-dos; sid:1000011; rev:2; )
+
+# 6. WEB — SQL injection attempt (OR 1=1)
+alert tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK SQL injection attempt (OR 1=1)"; flow:to_server,established; content:"' OR '1'='1"; classtype:web-application-attack; sid:1000020; rev:2; )
+
+# 7. WEB — SQL injection attempt (UNION SELECT)
+alert tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK SQL injection attempt (UNION SELECT)"; flow:to_server,established; content:"UNION SELECT"; classtype:web-application-attack; sid:1000021; rev:2; )
+
+# 8. WEB — basic XSS probe
+alert tcp any any -> $HOME_NET 80 ( msg:"WEB-ATTACK XSS probe (script tag)"; flow:to_server,established; content:"<script>"; classtype:web-application-attack; sid:1000022; rev:2; )
+
+# 9. MALWARE — EICAR standard antivirus test string (harmless test file)
+alert tcp any any -> $HOME_NET any ( msg:"MALWARE EICAR test signature detected"; content:"EICAR-STANDARD-ANTIVIRUS-TEST-FILE"; classtype:trojan-activity; sid:1000030; rev:2; )
+
+# 10. BRUTE FORCE — 10+ SSH connection attempts from one source in 20s
+alert tcp any any -> $HOME_NET 22 ( msg:"BRUTE-FORCE Repeated SSH connection attempts"; flags:S; detection_filter:track by_src, count 10, seconds 20; classtype:attempted-recon; sid:1000040; rev:2; )
+
+# QUICKBITE: lab-only marker in repeated simulated login attempts.
+alert tcp any any -> $HOME_NET 80 ( msg:"QUICKBITE Credential stuffing login attempt detected"; flow:to_server,established; content:"password=quickbite-demo-guess"; classtype:attempted-user; sid:1000050; rev:2; )
+
+# QUICKBITE: controlled test marker for checkout price tampering.
+alert tcp any any -> $HOME_NET 80 ( msg:"QUICKBITE Order-total tampering attempt detected"; flow:to_server,established; content:"total=0.01"; classtype:bad-unknown; sid:1000051; rev:1; )
